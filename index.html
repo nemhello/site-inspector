@@ -258,6 +258,64 @@
             </div>
         </div>
 
+        <!-- Report Options Modal -->
+        <div id="reportModal" class="modal hidden">
+            <div class="modal-content">
+                <button class="btn-close" onclick="closeReportModal()">×</button>
+                <h2>Generate Report</h2>
+
+                <div class="report-options">
+                    <div class="report-option-section">
+                        <h3>Report Details</h3>
+                        
+                        <div class="form-group">
+                            <label>Inspector Name</label>
+                            <input type="text" id="inspectorName" class="input-field" placeholder="Your name">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Report Title</label>
+                            <input type="text" id="reportTitle" class="input-field" placeholder="Site Inspection Report">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Summary/Notes</label>
+                            <textarea id="reportSummary" class="textarea-field" placeholder="Overall summary of inspection findings..."></textarea>
+                        </div>
+                    </div>
+
+                    <div class="report-option-section">
+                        <h3>Include in Report</h3>
+                        
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="includePhotos" checked>
+                            Include all photos
+                        </label>
+
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="includeTimestamp" checked>
+                            Include date/time stamps
+                        </label>
+
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="includeWorkOrder" checked>
+                            Include work order information
+                        </label>
+
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="includeCaptions" checked>
+                            Include photo captions
+                        </label>
+                    </div>
+                </div>
+
+                <div class="report-actions">
+                    <button id="generatePDFBtn" class="btn btn-primary">📄 Generate PDF</button>
+                    <button id="emailReportBtn" class="btn btn-secondary">📧 Email Report</button>
+                </div>
+            </div>
+        </div>
+
         <!-- Loading Indicator -->
         <div id="loadingIndicator" class="loading-indicator hidden">
             <div class="spinner"></div>
@@ -268,6 +326,7 @@
         <div class="version">v1.2 - Phase 3</div>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

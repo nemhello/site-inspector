@@ -876,6 +876,10 @@ function setupEventListeners() {
     document.getElementById('generateReportBtn').addEventListener('click', generateReport);
 
     // Report generation
+    document.getElementById('generatePDFBtn').addEventListener('click', generatePDF);
+    document.getElementById('emailReportBtn').addEventListener('click', emailReport);
+
+    // Report generation
     document.getElementById('generatePdfBtn').addEventListener('click', generatePDF);
     document.getElementById('emailReportBtn').addEventListener('click', emailReport);
 
@@ -952,15 +956,15 @@ function importData(e) {
 function generateReport() {
     if (!currentInspection) return;
     
+    // Pre-fill inspector name if saved
+    const savedInspector = localStorage.getItem('inspectorName') || '';
+    document.getElementById('inspectorName').value = savedInspector;
+    
+    // Pre-fill report title
+    document.getElementById('reportTitle').value = `Site Inspection - ${currentInspection.location}`;
+    
     // Open report modal
     document.getElementById('reportModal').classList.remove('hidden');
-    
-    // Load saved inspector name
-    const savedName = localStorage.getItem('inspectorName') || '';
-    document.getElementById('inspectorName').value = savedName;
-    
-    // Generate preview
-    generateReportPreview();
 }
 
 function generateReportPreview() {
@@ -1327,4 +1331,303 @@ async function blobToBase64(blob) {
 async function base64ToBlob(base64) {
     const response = await fetch(base64);
     return response.blob();
+}
+
+// ============================================
+// REPORT GENERATION - PHASE 3
+// ============================================
+
+function closeReportModal() {
+    document.getElementById('reportModal').classList.add('hidden');
+}
+
+async function generatePDF() {
+    if (!currentInspection) return;
+
+    const inspectorName = document.getElementById('inspectorName').value.trim();
+    const reportTitle = document.getElementById('reportTitle').value.trim();
+    const reportSummary = document.getElementById('reportSummary').value.trim();
+    
+    const includePhotos = document.getElementById('includePhotos').checked;
+    const includeTimestamp = document.getElementById('includeTimestamp').checked;
+    const includeWorkOrder = document.getElementById('includeWorkOrder').checked;
+    const includeCaptions = document.getElementById('includeCaptions').checked;
+
+    if (inspectorName) {
+        localStorage.setItem('inspectorName', inspectorName);
+    }
+
+    showLoading('Generating PDF report...');
+    closeReportModal();
+
+    try {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        
+        let yPos = 20;
+        const leftMargin = 20;
+        const rightMargin = 190;
+        const lineHeight = 7;
+
+        // Helper function to add text with wrap
+        const addText = (text, x, y, maxWidth) => {
+            const lines = doc.splitTextToSize(text, maxWidth);
+            doc.text(lines, x, y);
+            return y + (lines.length * lineHeight);
+        };
+
+        // Header
+        doc.setFontSize(20);
+        doc.setFont(undefined, 'bold');
+        yPos = addText(reportTitle || 'Site Inspection Report', leftMargin, yPos, rightMargin - leftMargin);
+        
+        yPos += 5;
+        doc.setLineWidth(0.5);
+        doc.line(leftMargin, yPos, rightMargin, yPos);
+        yPos += 10;
+
+        // Inspection Details
+        doc.setFontSize(12);
+        doc.setFont(undefined, 'bold');
+        yPos = addText('Inspection Details', leftMargin, yPos, rightMargin - leftMargin);
+        yPos += 2;
+
+        doc.setFont(undefined, 'normal');
+        doc.setFontSize(10);
+        
+        yPos = addText(`Location: ${currentInspection.location}`, leftMargin, yPos, rightMargin - leftMargin);
+        
+        if (includeWorkOrder && currentInspection.workOrder) {
+            yPos = addText(`Work Order: #${currentInspection.workOrder}`, leftMargin, yPos, rightMargin - leftMargin);
+        }
+        
+        if (includeTimestamp) {
+            yPos = addText(`Date: ${formatDate(currentInspection.date)}`, leftMargin, yPos, rightMargin - leftMargin);
+        }
+        
+        if (inspectorName) {
+            yPos = addText(`Inspector: ${inspectorName}`, leftMargin, yPos, rightMargin - leftMargin);
+        }
+
+        yPos = addText(`Photos: ${currentInspection.photos.length}`, leftMargin, yPos, rightMargin - leftMargin);
+        
+        yPos += 5;
+
+        // Summary Section
+        if (reportSummary) {
+            doc.setFontSize(12);
+            doc.setFont(undefined, 'bold');
+            yPos = addText('Summary', leftMargin, yPos, rightMargin - leftMargin);
+            yPos += 2;
+
+            doc.setFont(undefined, 'normal');
+            doc.setFontSize(10);
+            yPos = addText(reportSummary, leftMargin, yPos, rightMargin - leftMargin);
+            yPos += 5;
+        }
+
+        // Notes Section
+        if (currentInspection.notes) {
+            doc.setFontSize(12);
+            doc.setFont(undefined, 'bold');
+            yPos = addText('Notes', leftMargin, yPos, rightMargin - leftMargin);
+            yPos += 2;
+
+            doc.setFont(undefined, 'normal');
+            doc.setFontSize(10);
+            yPos = addText(currentInspection.notes, leftMargin, yPos, rightMargin - leftMargin);
+            yPos += 5;
+        }
+
+        // Photos Section
+        if (includePhotos && currentInspection.photos.length > 0) {
+            doc.setFontSize(12);
+            doc.setFont(undefined, 'bold');
+            yPos = addText('Photo Documentation', leftMargin, yPos, rightMargin - leftMargin);
+            yPos += 5;
+
+            updateLoadingText(`Loading photos (0/${currentInspection.photos.length})...`);
+
+            for (let i = 0; i < currentInspection.photos.length; i++) {
+                const photo = currentInspection.photos[i];
+                
+                updateLoadingText(`Loading photos (${i + 1}/${currentInspection.photos.length})...`);
+
+                // Check if new page needed
+                if (yPos > 250) {
+                    doc.addPage();
+                    yPos = 20;
+                }
+
+                // Photo number
+                doc.setFontSize(10);
+                doc.setFont(undefined, 'bold');
+                yPos = addText(`Photo ${i + 1}:`, leftMargin, yPos, rightMargin - leftMargin);
+                yPos += 2;
+
+                // Load and add image
+                try {
+                    const imageUrl = photo.storage === 'local' 
+                        ? photo.localBlob 
+                        : (photo.url || photo.fullUrl);
+
+                    // Convert image to base64 if needed
+                    const imgData = await loadImageAsBase64(imageUrl);
+                    
+                    // Add image to PDF (max width 170mm, maintain aspect ratio)
+                    const imgWidth = 170;
+                    const imgHeight = 120; // Fixed height for consistency
+                    
+                    if (yPos + imgHeight + 10 > 280) {
+                        doc.addPage();
+                        yPos = 20;
+                    }
+
+                    doc.addImage(imgData, 'JPEG', leftMargin, yPos, imgWidth, imgHeight);
+                    yPos += imgHeight + 5;
+
+                    // Add caption if enabled
+                    if (includeCaptions && photo.caption) {
+                        doc.setFont(undefined, 'italic');
+                        doc.setFontSize(9);
+                        yPos = addText(`Caption: ${photo.caption}`, leftMargin, yPos, rightMargin - leftMargin);
+                        yPos += 2;
+                    }
+
+                    // Add storage info
+                    doc.setFont(undefined, 'normal');
+                    doc.setFontSize(8);
+                    const storageText = photo.storage === 'immich' ? 'Immich' : 
+                                       photo.storage === 'cloudinary' ? 'Cloudinary' : 'Local';
+                    yPos = addText(`Storage: ${storageText}`, leftMargin, yPos, rightMargin - leftMargin);
+                    
+                    if (includeTimestamp && photo.timestamp) {
+                        yPos = addText(`Captured: ${formatDate(photo.timestamp)}`, leftMargin, yPos, rightMargin - leftMargin);
+                    }
+
+                    yPos += 5;
+
+                } catch (error) {
+                    console.error('Failed to add photo to PDF:', error);
+                    doc.setFont(undefined, 'italic');
+                    doc.setFontSize(9);
+                    yPos = addText('[Photo failed to load]', leftMargin, yPos, rightMargin - leftMargin);
+                    yPos += 5;
+                }
+            }
+        }
+
+        // Footer on last page
+        const pageCount = doc.internal.getNumberOfPages();
+        for (let i = 1; i <= pageCount; i++) {
+            doc.setPage(i);
+            doc.setFontSize(8);
+            doc.setFont(undefined, 'normal');
+            doc.text(`Page ${i} of ${pageCount}`, leftMargin, 285);
+            doc.text('Generated by Site Inspector', rightMargin - 40, 285);
+        }
+
+        // Save PDF
+        const filename = `inspection-${currentInspection.location.replace(/\s+/g, '-')}-${Date.now()}.pdf`;
+        doc.save(filename);
+
+        hideLoading();
+        showNotification('✅ PDF report generated!', 'success');
+
+    } catch (error) {
+        console.error('PDF generation error:', error);
+        hideLoading();
+        showNotification('❌ Failed to generate PDF', 'error');
+    }
+}
+
+async function loadImageAsBase64(url) {
+    return new Promise((resolve, reject) => {
+        if (url.startsWith('data:')) {
+            resolve(url);
+            return;
+        }
+
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+            resolve(canvas.toDataURL('image/jpeg', 0.8));
+        };
+
+        img.onerror = () => reject(new Error('Failed to load image'));
+        img.src = url;
+    });
+}
+
+function emailReport() {
+    if (!currentInspection) return;
+
+    const inspectorName = document.getElementById('inspectorName').value.trim();
+    const reportTitle = document.getElementById('reportTitle').value.trim();
+    const reportSummary = document.getElementById('reportSummary').value.trim();
+
+    // Create email body
+    let emailBody = `SITE INSPECTION REPORT\n`;
+    emailBody += `${'='.repeat(50)}\n\n`;
+    
+    emailBody += `Location: ${currentInspection.location}\n`;
+    
+    if (currentInspection.workOrder) {
+        emailBody += `Work Order: #${currentInspection.workOrder}\n`;
+    }
+    
+    emailBody += `Date: ${formatDate(currentInspection.date)}\n`;
+    
+    if (inspectorName) {
+        emailBody += `Inspector: ${inspectorName}\n`;
+    }
+    
+    emailBody += `Photos: ${currentInspection.photos.length}\n\n`;
+
+    if (reportSummary) {
+        emailBody += `SUMMARY:\n${reportSummary}\n\n`;
+    }
+
+    if (currentInspection.notes) {
+        emailBody += `NOTES:\n${currentInspection.notes}\n\n`;
+    }
+
+    emailBody += `PHOTOS:\n`;
+    currentInspection.photos.forEach((photo, i) => {
+        emailBody += `\n${i + 1}. `;
+        if (photo.caption) {
+            emailBody += photo.caption;
+        } else {
+            emailBody += `Photo ${i + 1}`;
+        }
+        
+        const storageText = photo.storage === 'immich' ? 'Immich' : 
+                           photo.storage === 'cloudinary' ? 'Cloudinary' : 'Local';
+        emailBody += ` (${storageText})`;
+        
+        if (photo.url) {
+            emailBody += `\n   View: ${photo.url}`;
+        }
+    });
+
+    emailBody += `\n\n${'='.repeat(50)}\n`;
+    emailBody += `Generated by Site Inspector\n`;
+    emailBody += `https://nemhello.github.io/site-inspector/`;
+
+    // Create mailto link
+    const subject = encodeURIComponent(reportTitle || `Site Inspection - ${currentInspection.location}`);
+    const body = encodeURIComponent(emailBody);
+    const mailtoLink = `mailto:?subject=${subject}&body=${body}`;
+
+    // Open email client
+    window.location.href = mailtoLink;
+    
+    closeReportModal();
+    showNotification('📧 Email client opened!', 'success');
 }
