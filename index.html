@@ -11,6 +11,8 @@
     <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
     <link rel="apple-touch-icon" href="icon-192.png">
     <link rel="stylesheet" href="styles.css">
+    <!-- jsPDF for PDF generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
     <div id="app">
@@ -107,7 +109,108 @@
                 <div class="photo-info">
                     <input type="text" id="photoCaptionInput" class="caption-input" placeholder="Add caption...">
                     <button id="saveCaptionBtn" class="btn btn-primary">Save Caption</button>
+                    <button id="annotatePhotoBtn" class="btn btn-secondary">✏️ Annotate</button>
                     <button id="deletePhotoBtn" class="btn btn-danger">Delete Photo</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Photo Annotation Modal -->
+        <div id="annotationModal" class="modal hidden">
+            <div class="modal-content annotation-editor">
+                <button class="btn-close" onclick="closeAnnotationEditor()">×</button>
+                
+                <div class="annotation-canvas-container">
+                    <canvas id="annotationCanvas"></canvas>
+                </div>
+
+                <div class="annotation-toolbar">
+                    <!-- Drawing Tools -->
+                    <div class="tool-section">
+                        <h4>Tools</h4>
+                        <div class="tool-buttons">
+                            <button class="tool-btn active" data-tool="draw" title="Free Draw">✏️</button>
+                            <button class="tool-btn" data-tool="arrow" title="Arrow">➡️</button>
+                            <button class="tool-btn" data-tool="circle" title="Circle">⭕</button>
+                            <button class="tool-btn" data-tool="rectangle" title="Rectangle">◻️</button>
+                            <button class="tool-btn" data-tool="text" title="Text">📝</button>
+                        </div>
+                    </div>
+
+                    <!-- Colors -->
+                    <div class="tool-section">
+                        <h4>Color</h4>
+                        <div class="color-buttons">
+                            <button class="color-btn active" data-color="#ef4444" style="background: #ef4444;" title="Red"></button>
+                            <button class="color-btn" data-color="#f59e0b" style="background: #f59e0b;" title="Orange"></button>
+                            <button class="color-btn" data-color="#10b981" style="background: #10b981;" title="Green"></button>
+                            <button class="color-btn" data-color="#3b82f6" style="background: #3b82f6;" title="Blue"></button>
+                            <button class="color-btn" data-color="#000000" style="background: #000000;" title="Black"></button>
+                            <button class="color-btn" data-color="#ffffff" style="background: #ffffff; border: 2px solid #ccc;" title="White"></button>
+                        </div>
+                    </div>
+
+                    <!-- Line Width -->
+                    <div class="tool-section">
+                        <h4>Width</h4>
+                        <div class="width-buttons">
+                            <button class="width-btn" data-width="2" title="Thin">━</button>
+                            <button class="width-btn active" data-width="4" title="Medium"><b>━</b></button>
+                            <button class="width-btn" data-width="8" title="Thick"><b><big>━</big></b></button>
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="tool-section">
+                        <h4>Actions</h4>
+                        <div class="action-buttons">
+                            <button id="undoBtn" class="action-btn" title="Undo">↩️</button>
+                            <button id="redoBtn" class="action-btn" title="Redo">↪️</button>
+                            <button id="clearBtn" class="action-btn" title="Clear All">🗑️</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="annotation-actions">
+                    <button id="cancelAnnotationBtn" class="btn btn-secondary">Cancel</button>
+                    <button id="saveAnnotationBtn" class="btn btn-primary">💾 Save Annotated Photo</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Report Generation Modal -->
+        <div id="reportModal" class="modal hidden">
+            <div class="modal-content">
+                <button class="btn-close" onclick="closeReportModal()">×</button>
+                <h2>Generate Report</h2>
+
+                <div class="report-preview">
+                    <h3>Report Preview</h3>
+                    <div id="reportPreview" class="report-preview-content">
+                        <!-- Preview will be populated here -->
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Inspector Name</label>
+                    <input type="text" id="inspectorName" class="input-field" placeholder="Your name">
+                </div>
+
+                <div class="form-group">
+                    <label>Additional Notes (Optional)</label>
+                    <textarea id="reportNotes" class="textarea-field" placeholder="Any additional observations or recommendations..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="includePhotos" checked>
+                        Include all photos in report
+                    </label>
+                </div>
+
+                <div class="report-actions">
+                    <button id="generatePdfBtn" class="btn btn-primary">📄 Generate PDF</button>
+                    <button id="emailReportBtn" class="btn btn-secondary">📧 Email Report</button>
                 </div>
             </div>
         </div>
@@ -162,7 +265,7 @@
         </div>
 
         <!-- Version -->
-        <div class="version">v1.0</div>
+        <div class="version">v1.2 - Phase 3</div>
     </div>
 
     <script src="app.js"></script>
