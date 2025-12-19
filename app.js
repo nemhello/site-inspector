@@ -76,15 +76,18 @@ async function uploadToImmich(photoBlob, caption) {
         formData.append('fileCreatedAt', new Date().toISOString());
         formData.append('fileModifiedAt', new Date().toISOString());
 
-        const response = await fetch(`${CONFIG.immich.url}/api/asset/upload`, {
+        const response = await fetch(`${CONFIG.immich.url}/api/assets`, {
             method: 'POST',
             headers: {
-                'x-api-key': CONFIG.immich.apiKey
+                'x-api-key': CONFIG.immich.apiKey,
+                'Accept': 'application/json'
             },
             body: formData
         });
 
         if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Immich upload error:', response.status, errorText);
             throw new Error(`Immich upload failed: ${response.status}`);
         }
 
@@ -93,8 +96,8 @@ async function uploadToImmich(photoBlob, caption) {
         return {
             storage: 'immich',
             assetId: result.id,
-            url: `${CONFIG.immich.url}/api/asset/thumbnail/${result.id}?x-api-key=${CONFIG.immich.apiKey}`,
-            fullUrl: `${CONFIG.immich.url}/api/asset/file/${result.id}?x-api-key=${CONFIG.immich.apiKey}`,
+            url: `${CONFIG.immich.url}/api/assets/${result.id}/thumbnail?x-api-key=${CONFIG.immich.apiKey}`,
+            fullUrl: `${CONFIG.immich.url}/api/assets/${result.id}/original?x-api-key=${CONFIG.immich.apiKey}`,
             caption: caption || '',
             timestamp: new Date().toISOString(),
             needsSync: false
@@ -810,8 +813,11 @@ async function syncToImmich() {
 async function checkStorageStatus() {
     // Check Immich
     try {
-        const response = await fetch(`${CONFIG.immich.url}/api/server-info/ping`, {
-            headers: { 'x-api-key': CONFIG.immich.apiKey }
+        const response = await fetch(`${CONFIG.immich.url}/api/server/ping`, {
+            headers: { 
+                'x-api-key': CONFIG.immich.apiKey,
+                'Accept': 'application/json'
+            }
         });
         
         const immichStatus = document.getElementById('immichStatus');
