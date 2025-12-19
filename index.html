@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#1e40af">
+    <title>Site Inspector</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Header -->
+        <header>
+            <h1>📸 Site Inspector</h1>
+        </header>
+
+        <!-- Main Screen - Inspections List -->
+        <div id="inspectionsScreen">
+            <!-- Search -->
+            <div class="search-section">
+                <input type="text" id="searchBox" placeholder="Search inspections..." class="search-box">
+            </div>
+
+            <!-- Recent Inspections -->
+            <div class="section">
+                <h2>Recent Inspections</h2>
+                <div id="inspectionsList"></div>
+            </div>
+
+            <!-- New Inspection Button -->
+            <button id="newInspectionBtn" class="btn btn-primary btn-large">
+                + New Inspection
+            </button>
+
+            <!-- Settings Button -->
+            <button id="settingsBtn" class="btn btn-secondary">⚙️ Settings</button>
+        </div>
+
+        <!-- New Inspection Screen -->
+        <div id="newInspectionScreen" class="hidden">
+            <button class="btn-back" onclick="backToMain()">← Back</button>
+            <h2>New Inspection</h2>
+
+            <div class="form-group">
+                <label>Location Name *</label>
+                <input type="text" id="locationInput" class="input-field" placeholder="e.g., North Patrol Tower">
+            </div>
+
+            <div class="form-group">
+                <label>Work Order #</label>
+                <input type="text" id="workOrderInput" class="input-field" placeholder="e.g., 24-1537">
+            </div>
+
+            <div class="form-group">
+                <label>Notes</label>
+                <textarea id="inspectionNotes" class="textarea-field" placeholder="General notes about this inspection..."></textarea>
+            </div>
+
+            <button id="createInspectionBtn" class="btn btn-primary btn-large">
+                Create & Add Photos
+            </button>
+        </div>
+
+        <!-- Inspection Detail Screen -->
+        <div id="inspectionDetailScreen" class="hidden">
+            <button class="btn-back" onclick="backToMain()">← Back</button>
+            
+            <div id="inspectionHeader">
+                <h2 id="detailLocation"></h2>
+                <div id="detailWorkOrder" class="work-order-badge"></div>
+                <div id="detailDate" class="detail-date"></div>
+            </div>
+
+            <!-- Photo Grid -->
+            <div class="section">
+                <h3>Photos (<span id="photoCount">0</span>)</h3>
+                <div id="photoGrid" class="photo-grid"></div>
+            </div>
+
+            <!-- Add Photo Buttons -->
+            <div class="photo-actions">
+                <button id="takePhotoBtn" class="btn btn-primary">📷 Take Photo</button>
+                <button id="uploadPhotoBtn" class="btn btn-primary">📁 Upload Photo</button>
+            </div>
+
+            <!-- Hidden file input -->
+            <input type="file" id="photoFileInput" accept="image/*" capture="environment" style="display: none;">
+            <input type="file" id="uploadFileInput" accept="image/*" multiple style="display: none;">
+
+            <!-- Actions -->
+            <div class="inspection-actions">
+                <button id="generateReportBtn" class="btn btn-secondary">📄 Generate Report</button>
+                <button id="deleteInspectionBtn" class="btn btn-danger">🗑️ Delete Inspection</button>
+            </div>
+        </div>
+
+        <!-- Photo Viewer Modal -->
+        <div id="photoViewerModal" class="modal hidden">
+            <div class="modal-content photo-viewer">
+                <button class="btn-close" onclick="closePhotoViewer()">×</button>
+                <img id="viewerImage" src="" alt="Photo">
+                <div class="photo-info">
+                    <input type="text" id="photoCaptionInput" class="caption-input" placeholder="Add caption...">
+                    <button id="saveCaptionBtn" class="btn btn-primary">Save Caption</button>
+                    <button id="deletePhotoBtn" class="btn btn-danger">Delete Photo</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Modal -->
+        <div id="settingsModal" class="modal hidden">
+            <div class="modal-content">
+                <button class="btn-close" onclick="closeSettings()">×</button>
+                <h2>Storage Settings</h2>
+
+                <div class="settings-section">
+                    <h3>Primary Storage (Immich)</h3>
+                    <div class="status-indicator">
+                        <span id="immichStatus" class="status-dot"></span>
+                        <span id="immichStatusText">Checking...</span>
+                    </div>
+                    <p class="settings-info">Photos upload to your Immich server first</p>
+                </div>
+
+                <div class="settings-section">
+                    <h3>Backup Storage (Cloudinary)</h3>
+                    <div class="status-indicator">
+                        <span id="cloudinaryStatus" class="status-dot"></span>
+                        <span id="cloudinaryStatusText">Available</span>
+                    </div>
+                    <p class="settings-info">Automatic fallback when Immich unavailable</p>
+                </div>
+
+                <div class="settings-section">
+                    <h3>Sync Settings</h3>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="autoSyncCheckbox" checked>
+                        Auto-sync Cloudinary photos to Immich
+                    </label>
+                    <button id="manualSyncBtn" class="btn btn-secondary">🔄 Sync Now</button>
+                    <p id="syncStatus" class="sync-status"></p>
+                </div>
+
+                <div class="settings-section">
+                    <h3>Data Management</h3>
+                    <button id="exportDataBtn" class="btn btn-secondary">💾 Export All Data</button>
+                    <button id="importDataBtn" class="btn btn-secondary">📂 Import Data</button>
+                    <input type="file" id="importFileInput" accept=".json" style="display: none;">
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading Indicator -->
+        <div id="loadingIndicator" class="loading-indicator hidden">
+            <div class="spinner"></div>
+            <p id="loadingText">Uploading...</p>
+        </div>
+
+        <!-- Version -->
+        <div class="version">v1.0</div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
