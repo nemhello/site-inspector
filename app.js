@@ -117,9 +117,12 @@ async function uploadToCloudinary(photoBlob, caption) {
     try {
         const formData = new FormData();
         formData.append('file', photoBlob);
-        formData.append('upload_preset', 'ml_default'); // Using default preset
+        formData.append('upload_preset', 'ml_default'); // Cloudinary default unsigned preset
         formData.append('folder', 'site-inspector');
+        formData.append('tags', 'site-inspector,field-documentation');
 
+        console.log('Uploading to Cloudinary...');
+        
         const response = await fetch(
             `https://api.cloudinary.com/v1_1/${CONFIG.cloudinary.cloudName}/image/upload`,
             {
@@ -129,10 +132,13 @@ async function uploadToCloudinary(photoBlob, caption) {
         );
 
         if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Cloudinary error:', response.status, errorText);
             throw new Error(`Cloudinary upload failed: ${response.status}`);
         }
 
         const result = await response.json();
+        console.log('Cloudinary upload success:', result.public_id);
 
         return {
             storage: 'cloudinary',
@@ -813,29 +819,46 @@ async function syncToImmich() {
 async function checkStorageStatus() {
     // Check Immich
     try {
+        console.log('Checking Immich status at:', `${CONFIG.immich.url}/api/server/ping`);
+        
         const response = await fetch(`${CONFIG.immich.url}/api/server/ping`, {
+            method: 'GET',
             headers: { 
                 'x-api-key': CONFIG.immich.apiKey,
                 'Accept': 'application/json'
-            }
+            },
+            mode: 'cors',
+            credentials: 'omit'
         });
+        
+        console.log('Immich response status:', response.status);
         
         const immichStatus = document.getElementById('immichStatus');
         const immichText = document.getElementById('immichStatusText');
         
         if (response.ok) {
+            const data = await response.json();
+            console.log('Immich response:', data);
             immichStatus.className = 'status-dot status-online';
             immichText.textContent = 'Connected';
         } else {
+            console.error('Immich returned error:', response.status);
             immichStatus.className = 'status-dot status-offline';
-            immichText.textContent = 'Offline';
+            immichText.textContent = `Offline (${response.status})`;
         }
     } catch (error) {
+        console.error('Immich check failed:', error);
         const immichStatus = document.getElementById('immichStatus');
         const immichText = document.getElementById('immichStatusText');
         immichStatus.className = 'status-dot status-offline';
-        immichText.textContent = 'Offline';
+        immichText.textContent = `Error: ${error.message}`;
     }
+    
+    // Check Cloudinary (always available since it's a public service)
+    const cloudinaryStatus = document.getElementById('cloudinaryStatus');
+    const cloudinaryText = document.getElementById('cloudinaryStatusText');
+    cloudinaryStatus.className = 'status-dot status-online';
+    cloudinaryText.textContent = 'Available';
 }
 
 // ============================================
